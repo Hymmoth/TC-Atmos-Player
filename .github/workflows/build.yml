@@ -80,6 +80,8 @@ jobs:
       - name: Sorgenti di mpv (fork mgth/mpv)
         run: |
           git clone --depth 1 --branch "$MPV_FORK_TAG" https://github.com/mgth/mpv.git deps/mpv
+          # Uscita a canali discreti 1:1 su CoreAudio (vedi patches/README.md).
+          git -C deps/mpv apply "$GITHUB_WORKSPACE/patches/mpv-coreaudio-discrete.patch"
           cp deps/mpv/LICENSE.GPL deps/engine/licenses/mpv-LICENSE.GPL.txt
 
       - name: Compila libmpv (con ad_orender)

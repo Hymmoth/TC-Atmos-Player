@@ -20,7 +20,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: Avvio
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppLog.start()
         EngineConfig.write(layout: settings.layout)
+        AppLog.write("layout \(settings.layout.name), dispositivo \(settings.audioDevice)")
 
         player = MPVPlayer()
         configurePlayer()
@@ -125,6 +127,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         p.setOption("osd-font-size", "40")
         p.setOption("volume-max", "100")
         p.setOption("ao", "coreaudio")
+        p.setOption("audio-channels", "auto")
+        p.setOption("log-file", AppLog.mpvLogPath)
         p.setOption("audio-device", settings.audioDevice)
         p.setOption("alang", AppSettings.mpvLanguageList(settings.audioLanguages))
         p.setOption("slang", AppSettings.mpvLanguageList(settings.subtitleLanguages))

@@ -48,6 +48,8 @@ final class OSCClient {
     private var lastRegister = Date.distantPast
     private var lastHeartbeat = Date.distantPast
     private var meteringRequested = false
+    private var connectedLogged = false
+    private var lastStatusLog = Date.distantPast
 
     init(enginePort: UInt16) {
         self.enginePort = enginePort
@@ -97,6 +99,7 @@ final class OSCClient {
         var tv = timeval(tv_sec: 0, tv_usec: 500_000)
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
 
+        AppLog.write("OSC: client sulla porta \(localPort), motore atteso sulla \(enginePort)")
         running = true
         let t = Thread { [weak self] in self?.loop() }
         t.name = "tc.osc"
@@ -123,6 +126,14 @@ final class OSCClient {
             lock.unlock()
             // Senza traffico da qualche secondo: (ri)registrazione. Il motore esiste
             // solo mentre si riproduce una traccia spaziale, quindi si riprova.
+            if now.timeIntervalSince(lastStatusLog) > 10 {
+                lastStatusLog = now
+                lock.lock()
+                let total = objects.count, dynamic = objects.values.filter { !$0.fixed }.count
+                lock.unlock()
+                AppLog.write("OSC: ultimo pacchetto \(silent > 1e6 ? "mai" : String(format: "%.1f s fa", silent)), oggetti \(dynamic) (+\(total - dynamic) letto)")
+                if silent > 6 { connectedLogged = false }
+            }
             if silent > 6, now.timeIntervalSince(lastRegister) > 2 {
                 send(address: "/omniphony/register", int: Int32(localPort))
                 lastRegister = now
@@ -136,6 +147,10 @@ final class OSCClient {
             let n = buffer.withUnsafeMutableBytes { recv(fd, $0.baseAddress, 65536, 0) }
             if n > 0 {
                 lock.lock(); lastReceive = Date(); lock.unlock()
+                if !connectedLogged {
+                    AppLog.write("OSC: il motore risponde")
+                    connectedLogged = true
+                }
                 if !meteringRequested {
                     // Chiede i livelli degli oggetti (per la dimensione delle sfere).
                     send(address: "/omniphony/control/metering", int: 1)

@@ -134,6 +134,7 @@ final class MPVPlayer {
                                ("mute", MPV_FORMAT_FLAG),
                                ("track-list", MPV_FORMAT_NONE),
                                ("current-tracks/audio/codec-profile", MPV_FORMAT_NONE),
+                               ("audio-out-params/channels", MPV_FORMAT_NONE),
                                ("video-params/gamma", MPV_FORMAT_NONE),
                                ("media-title", MPV_FORMAT_NONE),
                                ("eof-reached", MPV_FORMAT_FLAG),

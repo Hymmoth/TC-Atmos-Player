@@ -422,7 +422,15 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
 
     // MARK: Eventi di mpv
 
+    /// Spegne la sovrimpressione degli oggetti che mpv-omniphony disegna sul video
+    /// (la vista 3D è nella sua finestra).
+    private func disableVideoOverlay() {
+        player.command(["script-message", "omniphony-overlay", "disable"])
+    }
+
     func playerFileLoaded(_ player: MPVPlayer) {
+        disableVideoOverlay()
+        AppLog.write("file aperto: \(currentPath ?? "?")")
         fileLoaded = true
         placeholder.isHidden = true
         if let title = player.getString("media-title"), !title.isEmpty {
@@ -467,6 +475,13 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
             volumeSlider.doubleValue = player.getDouble("volume") ?? 100
         case "track-list", "current-tracks/audio/codec-profile":
             refreshTrackUI()
+            disableVideoOverlay()
+            if name == "current-tracks/audio/codec-profile" {
+                let ch = player.getString("audio-params/channels") ?? "?"
+                let out = player.getString("audio-out-params/channels") ?? "?"
+                let dev = player.getString("audio-device") ?? "?"
+                AppLog.write("audio: \(player.getString("current-tracks/audio/codec-profile") ?? "-") | decoder \(player.getString("current-tracks/audio/decoder-desc") ?? "?") | canali \(ch) → uscita \(out) | dispositivo \(dev)")
+            }
         case "video-params/gamma":
             updateHDR()
         case "media-title":

@@ -1,0 +1,69 @@
+diff --git a/audio/out/ao_coreaudio_chmap.c b/audio/out/ao_coreaudio_chmap.c
+index 2c6131f..e2b98cb 100644
+--- a/audio/out/ao_coreaudio_chmap.c
++++ b/audio/out/ao_coreaudio_chmap.c
+@@ -316,6 +316,18 @@ mismatch:;
+ 
+ AudioChannelLayout *ca_get_acl(struct ao *ao, size_t *out_layout_size)
+ {
++    // TC Cinema Player: positionless (by-index) multichannel output goes to
++    // the device channels in order, 1:1, without any remapping.
++    if (mp_chmap_is_unknown(&ao->channels) && ao->channels.num > 2) {
++        AudioChannelLayout *discrete = talloc_zero_size(ao, sizeof(AudioChannelLayout));
++        discrete->mChannelLayoutTag =
++            kAudioChannelLayoutTag_DiscreteInOrder | (UInt32)ao->channels.num;
++        if (out_layout_size)
++            *out_layout_size = sizeof(AudioChannelLayout);
++        MP_VERBOSE(ao, "discrete in-order layout, %d channels\n", ao->channels.num);
++        return discrete;
++    }
++
+     size_t layout_size = sizeof(AudioChannelLayout)
+                          + (ao->channels.num - 1) * sizeof(AudioChannelDescription);
+     AudioChannelLayout *layout = talloc_size(ao, layout_size);
+@@ -484,8 +496,45 @@ static void ca_retrieve_layouts(struct ao *ao, struct mp_chmap_sel *s,
+     talloc_free(ta_ctx);
+ }
+ 
++// Total number of output channels of a device.
++static int ca_device_output_channels(AudioDeviceID device)
++{
++    AudioObjectPropertyAddress p_addr = (AudioObjectPropertyAddress) {
++        .mSelector = kAudioDevicePropertyStreamConfiguration,
++        .mScope    = kAudioDevicePropertyScopeOutput,
++        .mElement  = kAudioObjectPropertyElementMain,
++    };
++    UInt32 size = 0;
++    if (AudioObjectGetPropertyDataSize(device, &p_addr, 0, NULL, &size) != noErr || !size)
++        return 0;
++    AudioBufferList *bl = talloc_size(NULL, size);
++    int n = 0;
++    if (AudioObjectGetPropertyData(device, &p_addr, 0, NULL, &size, bl) == noErr) {
++        for (UInt32 i = 0; i < bl->mNumberBuffers; i++)
++            n += bl->mBuffers[i].mNumberChannels;
++    }
++    talloc_free(bl);
++    return n;
++}
++
+ bool ca_init_chmap(struct ao *ao, AudioDeviceID device)
+ {
++    // TC Cinema Player: keep a positionless (by-index) multichannel stream as
++    // it is when the device has enough outputs, instead of matching it against
++    // the speaker configuration of Audio MIDI Setup (which usually ends in a
++    // stereo downmix for interfaces with discrete outputs).
++    if (mp_chmap_is_unknown(&ao->channels) && ao->channels.num > 2) {
++        int dev_ch = ca_device_output_channels(device);
++        if (dev_ch >= ao->channels.num) {
++            MP_INFO(ao, "discrete output: %d channels on a %d-output device\n",
++                    ao->channels.num, dev_ch);
++            return true;
++        }
++        MP_WARN(ao, "the device has %d outputs, %d are needed: "
++                "falling back to the speaker configuration\n",
++                dev_ch, ao->channels.num);
++    }
++
+     struct mp_chmap_sel chmap_sel = {0};
+     ca_retrieve_layouts(ao, &chmap_sel, device);
+ 
