@@ -49,6 +49,8 @@ final class OSCClient {
     private var lastHeartbeat = Date.distantPast
     private var meteringRequested = false
     private var connectedLogged = false
+    /// Il motore non ci conosce (es. nuovo motore dopo un cambio di traccia): va rifatta la registrazione.
+    private var needsRegister = false
     private var lastStatusLog = Date.distantPast
 
     init(enginePort: UInt16) {
@@ -134,7 +136,15 @@ final class OSCClient {
                 AppLog.write("OSC: ultimo pacchetto \(silent > 1e6 ? "mai" : String(format: "%.1f s fa", silent)), oggetti \(dynamic) (+\(total - dynamic) letto)")
                 if silent > 6 { connectedLogged = false }
             }
-            if silent > 6, now.timeIntervalSince(lastRegister) > 2 {
+            if needsRegister, now.timeIntervalSince(lastRegister) > 0.5 {
+                needsRegister = false
+                AppLog.write("OSC: nuovo motore, mi registro di nuovo")
+                clear()
+                send(address: "/omniphony/register", int: Int32(localPort))
+                lastRegister = now
+                lastHeartbeat = now
+                meteringRequested = false
+            } else if silent > 6, now.timeIntervalSince(lastRegister) > 2 {
                 send(address: "/omniphony/register", int: Int32(localPort))
                 lastRegister = now
                 lastHeartbeat = now
@@ -232,6 +242,11 @@ final class OSCClient {
     private func parseMessage(_ d: [UInt8]) {
         var p = 0
         guard let address = readString(d, &p), address.hasPrefix("/omniphony/") else { return }
+        // Il motore è cambiato o si sta chiudendo: bisogna registrarsi di nuovo.
+        if address == "/omniphony/heartbeat/unknown" || address == "/omniphony/state/shutdown" {
+            needsRegister = true
+            return
+        }
         // Interessano solo gli oggetti: si evita di decodificare il resto.
         guard address.hasPrefix("/omniphony/object/") || address.hasPrefix("/omniphony/meter/object/") else { return }
         guard p < d.count, let tags = readString(d, &p), tags.hasPrefix(",") else { return }

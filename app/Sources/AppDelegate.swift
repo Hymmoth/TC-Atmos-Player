@@ -107,7 +107,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 print(String(format: "SMOKE osc: #%d %@ %@ x=%.2f y=%.2f z=%.2f rms=%.1f", id,
                              o.fixed ? "letto" : "oggetto", o.label, o.x, o.y, o.z, o.rmsDB))
             }
-            playbackOK = channels == expected
+            // Seconda apertura: il motore viene ricreato e la vista 3D deve riagganciarlo.
+            player.command(["loadfile", file, "replace"])
+            Thread.sleep(forTimeInterval: 1)
+            var objects2 = 0
+            let deadline2 = Date().addingTimeInterval(20)
+            while Date() < deadline2 {
+                Thread.sleep(forTimeInterval: 0.25)
+                objects2 = osc.snapshot.values.filter { !$0.fixed }.count
+                if objects2 > 0 { break }
+            }
+            print("SMOKE osc dopo riapertura: oggetti=\(objects2)")
+            playbackOK = channels == expected && objects > 0 && objects2 > 0
         }
         fflush(stdout)
         player.destroy()
