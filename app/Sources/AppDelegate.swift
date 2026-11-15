@@ -153,6 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             p.setOption("ad-orender-config", EngineConfig.configURL.path)
             p.setOption("ad-orender-osc", "yes")
             p.setOption("ad-orender-osc-rx-port", String(EngineConfig.oscPort))
+            p.setOption("ad-orender-osc-bind", "127.0.0.1")
         } else {
             NSLog("Motore Atmos non trovato in \(engineDir.path): riproduzione senza rendering a oggetti")
         }

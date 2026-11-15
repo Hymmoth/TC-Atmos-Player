@@ -1,7 +1,7 @@
 import Cocoa
 
 /// Finestra principale: video, barra dei controlli, gestione delle tracce.
-final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPlayerDelegate, NSMenuDelegate {
+final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPlayerDelegate {
     let player: MPVPlayer
     let osc: OSCClient
     private(set) var videoView: VideoView!
@@ -14,8 +14,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
     private let durationLabel = NSTextField(labelWithString: "0:00")
     private let seekSlider = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
     private let volumeSlider = NSSlider(value: 100, minValue: 0, maxValue: 100, target: nil, action: nil)
-    private let audioButton = NSPopUpButton(frame: .zero, pullsDown: true)
-    private let subButton = NSPopUpButton(frame: .zero, pullsDown: true)
+    private var audioButton: NSButton!
+    private var subButton: NSButton!
+    private let audioMenu = NSMenu()
+    private let subMenu = NSMenu()
     private let atmosBadge = NSTextField(labelWithString: "ATMOS")
     private let placeholder = NSTextField(labelWithString: "Trascina qui un video oppure premi ⌘O")
     private var hideTimer: Timer?
@@ -105,8 +107,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
                                                     accessibilityDescription: "Volume")!)
         volumeIcon.contentTintColor = .white
 
-        configurePopup(audioButton, symbol: "waveform", tooltip: "Tracce audio")
-        configurePopup(subButton, symbol: "captions.bubble", tooltip: "Sottotitoli")
+        audioButton = iconButton("waveform", tooltip: "Tracce audio", action: #selector(showAudioMenu(_:)))
+        subButton = iconButton("captions.bubble", tooltip: "Sottotitoli", action: #selector(showSubtitleMenu(_:)))
 
         atmosBadge.font = .systemFont(ofSize: 10, weight: .bold)
         atmosBadge.textColor = .black
@@ -151,18 +153,14 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
         ])
     }
 
-    private func configurePopup(_ b: NSPopUpButton, symbol: String, tooltip: String) {
-        b.bezelStyle = .regularSquare
-        b.isBordered = false
-        b.toolTip = tooltip
-        (b.cell as? NSPopUpButtonCell)?.arrowPosition = .noArrow
-        let menu = NSMenu()
-        menu.delegate = self
-        let titleItem = NSMenuItem()
-        titleItem.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tooltip)
-        menu.addItem(titleItem)
-        b.menu = menu
-        b.widthAnchor.constraint(equalToConstant: 30).isActive = true
+    @objc private func showAudioMenu(_ sender: NSButton) {
+        fillAudioMenu(audioMenu, keepFirst: false)
+        audioMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 4), in: sender)
+    }
+
+    @objc private func showSubtitleMenu(_ sender: NSButton) {
+        fillSubtitleMenu(subMenu, keepFirst: false)
+        subMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.height + 4), in: sender)
     }
 
     private func iconButton(_ symbol: String, tooltip: String, action: Selector) -> NSButton {
@@ -289,14 +287,6 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
         let current = tracks.first { $0.type == "audio" && $0.selected }
         let live = player.getString("current-tracks/audio/codec-profile") ?? ""
         atmosBadge.isHidden = !((current?.isAtmos ?? false) || live.localizedCaseInsensitiveContains("atmos"))
-    }
-
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        if menu === audioButton.menu {
-            fillAudioMenu(menu, keepFirst: true)
-        } else if menu === subButton.menu {
-            fillSubtitleMenu(menu, keepFirst: true)
-        }
     }
 
     /// Riempie un menu con le tracce audio (usato sia dalla barra sia dal menu "Audio").
