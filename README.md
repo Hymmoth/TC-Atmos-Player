@@ -1,4 +1,4 @@
-# TC Atmos Player
+# TC Cinema Player
 
 Player video per Mac (Apple Silicon) che riproduce le tracce **Dolby Atmos** con il
 rendering a oggetti vero, su uscite audio discrete, senza installare nient'altro.
@@ -10,13 +10,13 @@ canali del layout scelto. Le altre tracce si riproducono normalmente.
 ## Scaricare l'app
 
 1. Apri la scheda **Actions** del repository e scegli l'ultima esecuzione riuscita (spunta verde).
-2. In fondo alla pagina, in **Artifacts**, scarica **TC-Atmos-Player-macOS**.
+2. In fondo alla pagina, in **Artifacts**, scarica **TC-Cinema-Player-macOS**.
 3. Estrai lo zip (a volte serve due volte: GitHub mette lo zip dentro un altro zip) e
-   sposta **TC Atmos Player** in Applicazioni.
+   sposta **TC Cinema Player** in Applicazioni.
 4. La prima volta macOS la blocca perché non è firmata da Apple. Prova ad aprirla, chiudi
    l'avviso, poi vai in Impostazioni di Sistema → **Privacy e sicurezza**: in fondo c'è
    **Apri comunque**. Basta farlo una volta. In alternativa, dal Terminale:
-   `xattr -dr com.apple.quarantine "/Applications/TC Atmos Player.app"`
+   `xattr -dr com.apple.quarantine "/Applications/TC Cinema Player.app"`
 
 Serve macOS 15 o successivo su un Mac con chip Apple.
 
@@ -86,7 +86,7 @@ dei dischi UHD (profilo 7 FEL) per ora non viene ricostruito.
 La vista 3D riceve le posizioni degli oggetti dal motore via OSC sulla porta locale 9137,
 quindi non interferisce con Omniphony Studio se è installato (porta 9000). La
 configurazione del motore usata dall'app sta in
-`~/Library/Application Support/TC Atmos Player/omniphony/config.yaml` e viene riscritta
+`~/Library/Application Support/TC Cinema Player/omniphony/config.yaml` e viene riscritta
 dalle preferenze.
 
 ### Compilazione

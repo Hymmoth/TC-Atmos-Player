@@ -38,7 +38,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 540),
                               styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
-        window.title = "TC Atmos Player"
+        window.title = "TC Cinema Player"
         window.titlebarAppearsTransparent = true
         window.backgroundColor = .black
         window.collectionBehavior = [.fullScreenPrimary]
@@ -500,7 +500,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
         fileLoaded = false
         currentPath = nil
         placeholder.isHidden = false
-        window?.title = "TC Atmos Player"
+        window?.title = "TC Cinema Player"
         osc.clear()
     }
 

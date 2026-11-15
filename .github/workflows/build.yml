@@ -1,6 +1,6 @@
 name: Compila l'app
 
-# Compila TC Atmos Player per Mac (Apple Silicon) e lo mette a disposizione
+# Compila TC Cinema Player per Mac (Apple Silicon) e lo mette a disposizione
 # da scaricare: scheda "Actions" → ultima esecuzione → "Artifacts".
 # Con un tag v* (es. v0.1.0) crea anche una release con lo zip.
 
@@ -108,14 +108,14 @@ jobs:
 
       - name: Prova di avvio
         run: |
-          APP="build/app/TC Atmos Player.app"
+          APP="build/app/TC Cinema Player.app"
           # Verifica librerie, mpv e motore Atmos (senza finestre), riproducendo
           # il campione DD+ Atmos di prova di harletty-bridge.
           curl -fsSL -o build/joc_atmos_1s.eac3 \
             "https://raw.githubusercontent.com/harletty/harletty-bridge/$HARLETTY_TAG/harletty/tests/fixtures/joc_atmos_1s.eac3"
-          TC_SMOKE_TEST=1 TC_SMOKE_FILE="$PWD/build/joc_atmos_1s.eac3" "$APP/Contents/MacOS/TCAtmosPlayer"
+          TC_SMOKE_TEST=1 TC_SMOKE_FILE="$PWD/build/joc_atmos_1s.eac3" "$APP/Contents/MacOS/TCCinemaPlayer"
           # Avvio con interfaccia: informativo (le macchine di CI spesso non hanno OpenGL).
-          "$APP/Contents/MacOS/TCAtmosPlayer" > build/app/avvio.log 2>&1 &
+          "$APP/Contents/MacOS/TCCinemaPlayer" > build/app/avvio.log 2>&1 &
           PID=$!
           sleep 10
           if kill -0 $PID 2>/dev/null; then echo "Interfaccia avviata."; kill $PID || true
@@ -126,12 +126,12 @@ jobs:
       - name: Comprimi
         run: |
           cd build/app
-          ditto -c -k --sequesterRsrc --keepParent "TC Atmos Player.app" "TC-Atmos-Player-macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent "TC Cinema Player.app" "TC-Cinema-Player-macOS.zip"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: TC-Atmos-Player-macOS
-          path: build/app/TC-Atmos-Player-macOS.zip
+          name: TC-Cinema-Player-macOS
+          path: build/app/TC-Cinema-Player-macOS.zip
           retention-days: 30
 
       - name: Release (solo per i tag)
@@ -139,5 +139,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "build/app/TC-Atmos-Player-macOS.zip" \
-            --title "TC Atmos Player $GITHUB_REF_NAME" --notes "App per Mac Apple Silicon (macOS 15 o successivo)."
+          gh release create "$GITHUB_REF_NAME" "build/app/TC-Cinema-Player-macOS.zip" \
+            --title "TC Cinema Player $GITHUB_REF_NAME" --notes "App per Mac Apple Silicon (macOS 15 o successivo)."

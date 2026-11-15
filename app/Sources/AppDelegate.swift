@@ -327,18 +327,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // App
         let appItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Informazioni su TC Atmos Player",
+        appMenu.addItem(withTitle: "Informazioni su TC Cinema Player",
                         action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
         appMenu.addItem(item("Preferenze…", #selector(showPreferences(_:)), key: ","))
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Nascondi TC Atmos Player", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "Nascondi TC Cinema Player", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         let hideOthers = appMenu.addItem(withTitle: "Nascondi altre",
                                          action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
         hideOthers.keyEquivalentModifierMask = [.command, .option]
         appMenu.addItem(withTitle: "Mostra tutte", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Esci da TC Atmos Player", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Esci da TC Cinema Player", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         main.addItem(appItem)
 

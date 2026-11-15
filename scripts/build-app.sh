@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compila TC Atmos Player e crea l'app autonoma.
+# Compila TC Cinema Player e crea l'app autonoma.
 #
 # Variabili richieste:
 #   MPV_PREFIX   cartella dove è installata libmpv (include/ e lib/)
@@ -15,7 +15,7 @@ APP_VERSION="${APP_VERSION:-0.1.0}"
 BUILD_NUMBER="${BUILD_NUMBER:-1}"
 
 OUT="$ROOT/build/app"
-APP="$OUT/TC Atmos Player.app"
+APP="$OUT/TC Cinema Player.app"
 FFMPEG="$(brew --prefix ffmpeg)"
 SRC="$ROOT/app/Sources"
 
@@ -27,14 +27,14 @@ clang -c -O2 -arch arm64 -mmacosx-version-min=15.0 -I"$FFMPEG/include" \
     "$SRC/AtmosProbe.c" -o "$OUT/AtmosProbe.o"
 
 echo ">> compilazione Swift"
-swiftc -O -target arm64-apple-macos15.0 -module-name TCAtmosPlayer \
+swiftc -O -target arm64-apple-macos15.0 -module-name TCCinemaPlayer \
     -import-objc-header "$SRC/Bridging-Header.h" \
     -I "$MPV_PREFIX/include" -I "$SRC" \
     "$SRC"/*.swift "$OUT/AtmosProbe.o" \
     -L "$MPV_PREFIX/lib" -lmpv \
     -L "$FFMPEG/lib" -lavformat -lavcodec -lavutil \
     -Xcc -DGL_SILENCE_DEPRECATION -framework Cocoa -framework OpenGL -framework QuartzCore -framework SceneKit -framework SwiftUI \
-    -o "$APP/Contents/MacOS/TCAtmosPlayer"
+    -o "$APP/Contents/MacOS/TCCinemaPlayer"
 
 echo ">> Info.plist e risorse"
 sed -e "s/@VERSION@/$APP_VERSION/" -e "s/@BUILD@/$BUILD_NUMBER/" "$ROOT/app/Info.plist" > "$APP/Contents/Info.plist"
@@ -49,11 +49,11 @@ fi
 cp "$ENGINE_DIR"/liborender.dylib "$APP/Contents/Resources/engine/"
 cp "$ENGINE_DIR"/libharletty_*_bridge.dylib "$APP/Contents/Resources/engine/"
 mkdir -p "$APP/Contents/Resources/licenses"
-cp "$ROOT/LICENSE" "$APP/Contents/Resources/licenses/TC-Atmos-Player-LICENSE.txt"
+cp "$ROOT/LICENSE" "$APP/Contents/Resources/licenses/TC-Cinema-Player-LICENSE.txt"
 if [ -d "$ENGINE_DIR/licenses" ]; then cp -R "$ENGINE_DIR/licenses/." "$APP/Contents/Resources/licenses/"; fi
 
 echo ">> librerie dentro l'app"
-python3 "$ROOT/scripts/bundle_dylibs.py" "$MPV_SRC/TOOLS" "$APP/Contents/MacOS/TCAtmosPlayer" \
+python3 "$ROOT/scripts/bundle_dylibs.py" "$MPV_SRC/TOOLS" "$APP/Contents/MacOS/TCCinemaPlayer" \
     "$APP/Contents/Resources/engine"/*.dylib
 
 echo ">> firma ad-hoc"

@@ -114,7 +114,7 @@ enum EngineConfig {
 
     static var directory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return base.appendingPathComponent("TC Atmos Player/omniphony", isDirectory: true)
+        return base.appendingPathComponent("TC Cinema Player/omniphony", isDirectory: true)
     }
 
     static var configURL: URL { directory.appendingPathComponent("config.yaml") }
@@ -123,7 +123,7 @@ enum EngineConfig {
 
     @discardableResult
     static func write(layout: SpeakerLayout) -> URL {
-        var y = "# Generato da TC Atmos Player: viene riscritto quando cambi le preferenze.\n"
+        var y = "# Generato da TC Cinema Player: viene riscritto quando cambi le preferenze.\n"
         y += "render:\n"
         y += "  osc: true\n"
         y += "  osc_metering: true\n"

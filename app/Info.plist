@@ -5,13 +5,13 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>it</string>
 	<key>CFBundleExecutable</key>
-	<string>TCAtmosPlayer</string>
+	<string>TCCinemaPlayer</string>
 	<key>CFBundleIdentifier</key>
-	<string>io.github.hymmoth.tcatmosplayer</string>
+	<string>io.github.hymmoth.tccinemaplayer</string>
 	<key>CFBundleName</key>
-	<string>TC Atmos Player</string>
+	<string>TC Cinema Player</string>
 	<key>CFBundleDisplayName</key>
-	<string>TC Atmos Player</string>
+	<string>TC Cinema Player</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundlePackageType</key>
