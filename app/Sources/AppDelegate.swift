@@ -29,6 +29,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         osc = OSCClient(enginePort: UInt16(EngineConfig.oscPort))
         osc.start()
 
+        // Prova automatica (CI): verifica librerie e motore, senza aprire finestre.
+        if ProcessInfo.processInfo.environment["TC_SMOKE_TEST"] == "1" {
+            runSmokeTest()
+            return
+        }
+
         playerWindow = PlayerWindowController(player: player, osc: osc)
         playerWindow.onOpenRequest = { [weak self] in self?.openDocument(nil) }
         playerWindow.onShow3D = { [weak self] in self?.show3D(nil) }
@@ -46,6 +52,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         pendingURLs.removeAll()
     }
 
+    private func runSmokeTest() {
+        let version = player.getString("mpv-version") ?? "?"
+        let ffmpeg = player.getString("ffmpeg-version") ?? "?"
+        let ad = player.getString("options/ad") ?? ""
+        let lib = player.getString("options/ad-orender-library") ?? ""
+        let bridges = player.getString("options/ad-orender-bridge-path") ?? ""
+        print("SMOKE mpv=\(version) ffmpeg=\(ffmpeg)")
+        print("SMOKE ad=\(ad)")
+        print("SMOKE liborender=\(lib)")
+        print("SMOKE bridge=\(bridges)")
+        let engineOK = ad.contains("orender") && FileManager.default.fileExists(atPath: lib) && !bridges.isEmpty
+        if let handle = dlopen(lib, RTLD_NOW) {
+            print("SMOKE dlopen liborender: ok")
+            dlclose(handle)
+        } else {
+            print("SMOKE dlopen liborender: ERRORE \(String(cString: dlerror()))")
+        }
+        for path in bridges.split(separator: ":") {
+            if let handle = dlopen(String(path), RTLD_NOW) {
+                print("SMOKE dlopen \((path as NSString).lastPathComponent): ok")
+                dlclose(handle)
+            } else {
+                print("SMOKE dlopen \(path): ERRORE \(String(cString: dlerror()))")
+            }
+        }
+        var buf = [tc_audio_stream_info](repeating: tc_audio_stream_info(), count: 4)
+        print("SMOKE probe(file inesistente)=\(tc_probe_audio_streams("/nonexistent.mkv", &buf, 4))")
+        fflush(stdout)
+        player.destroy()
+        exit(engineOK ? 0 : 1)
+    }
+
     private func configurePlayer() {
         let p = player!
         p.setOption("config", "no")
@@ -55,9 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         p.setOption("keep-open", "yes")
         p.setOption("input-default-bindings", "no")
         p.setOption("input-vo-keyboard", "no")
-        p.setOption("osc", "no")
         p.setOption("load-scripts", "no")
-        p.setOption("ytdl", "no")
         p.setOption("osd-font-size", "40")
         p.setOption("volume-max", "100")
         p.setOption("ao", "coreaudio")

@@ -45,6 +45,15 @@ final class VideoLayer: CAOpenGLLayer {
             ]
             CGLChoosePixelFormat(fallback, &pix, &npix)
         }
+        if pix == nil {
+            // Ultimo ripiego: qualunque renderer, anche software.
+            let minimal: [CGLPixelFormatAttribute] = [
+                kCGLPFAOpenGLProfile, CGLPixelFormatAttribute(UInt32(kCGLOGLPVersion_3_2_Core.rawValue)),
+                kCGLPFADoubleBuffer,
+                CGLPixelFormatAttribute(0)
+            ]
+            CGLChoosePixelFormat(minimal, &pix, &npix)
+        }
         guard let pixelFormat = pix else { fatalError("Nessun formato OpenGL disponibile") }
         cglPixelFormat = pixelFormat
 
