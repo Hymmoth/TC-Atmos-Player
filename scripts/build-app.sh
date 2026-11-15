@@ -39,7 +39,13 @@ swiftc -O -target arm64-apple-macos15.0 -module-name TCAtmosPlayer \
 echo ">> Info.plist e risorse"
 sed -e "s/@VERSION@/$APP_VERSION/" -e "s/@BUILD@/$BUILD_NUMBER/" "$ROOT/app/Info.plist" > "$APP/Contents/Info.plist"
 plutil -lint "$APP/Contents/Info.plist"
-if [ -f "$ROOT/app/AppIcon.icns" ]; then cp "$ROOT/app/AppIcon.icns" "$APP/Contents/Resources/"; fi
+if [ -f "$ROOT/app/AppIcon.icns" ]; then
+    cp "$ROOT/app/AppIcon.icns" "$APP/Contents/Resources/"
+else
+    ( swift "$ROOT/scripts/make-icon.swift" "$OUT/AppIcon.iconset" &&
+      iconutil -c icns "$OUT/AppIcon.iconset" -o "$APP/Contents/Resources/AppIcon.icns" ) ||
+      echo "!! icona non creata (l'app funziona lo stesso)"
+fi
 cp "$ENGINE_DIR"/liborender.dylib "$APP/Contents/Resources/engine/"
 cp "$ENGINE_DIR"/libharletty_*_bridge.dylib "$APP/Contents/Resources/engine/"
 mkdir -p "$APP/Contents/Resources/licenses"

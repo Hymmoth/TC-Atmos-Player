@@ -494,6 +494,16 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
 
     func windowDidChangeScreen(_ notification: Notification) { updateHDR() }
 
+    func windowWillClose(_ notification: Notification) {
+        // Chiudendo la finestra si ferma la riproduzione (l'app resta aperta).
+        player.command(["stop"])
+        fileLoaded = false
+        currentPath = nil
+        placeholder.isHidden = false
+        window?.title = "TC Atmos Player"
+        osc.clear()
+    }
+
     func windowDidResize(_ notification: Notification) { videoView.videoLayer.forceDraw() }
 
     // MARK: Utilità

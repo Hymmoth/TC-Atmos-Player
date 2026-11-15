@@ -109,8 +109,11 @@ jobs:
       - name: Prova di avvio
         run: |
           APP="build/app/TC Atmos Player.app"
-          # Verifica librerie, mpv e motore Atmos (senza finestre).
-          TC_SMOKE_TEST=1 "$APP/Contents/MacOS/TCAtmosPlayer"
+          # Verifica librerie, mpv e motore Atmos (senza finestre), riproducendo
+          # il campione DD+ Atmos di prova di harletty-bridge.
+          curl -fsSL -o build/joc_atmos_1s.eac3 \
+            "https://raw.githubusercontent.com/harletty/harletty-bridge/$HARLETTY_TAG/harletty/tests/fixtures/joc_atmos_1s.eac3"
+          TC_SMOKE_TEST=1 TC_SMOKE_FILE="$PWD/build/joc_atmos_1s.eac3" "$APP/Contents/MacOS/TCAtmosPlayer"
           # Avvio con interfaccia: informativo (le macchine di CI spesso non hanno OpenGL).
           "$APP/Contents/MacOS/TCAtmosPlayer" > build/app/avvio.log 2>&1 &
           PID=$!

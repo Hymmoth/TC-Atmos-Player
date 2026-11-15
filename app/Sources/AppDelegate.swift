@@ -79,9 +79,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         var buf = [tc_audio_stream_info](repeating: tc_audio_stream_info(), count: 4)
         print("SMOKE probe(file inesistente)=\(tc_probe_audio_streams("/nonexistent.mkv", &buf, 4))")
+
+        // Riproduzione di prova di un file Atmos (DD+ JOC), se indicato.
+        var playbackOK = true
+        if let file = ProcessInfo.processInfo.environment["TC_SMOKE_FILE"] {
+            let n = tc_probe_audio_streams(file, &buf, 4)
+            print("SMOKE probe: \(n) tracce, atmos=\(n > 0 ? Int(buf[0].is_atmos) : -1), canali=\(n > 0 ? Int(buf[0].channels) : -1)")
+            player.command(["loadfile", file, "replace"])
+            let expected = settings.layout.speakers.count
+            var channels = 0, profile = "", objects = 0
+            let deadline = Date().addingTimeInterval(20)
+            while Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.25)
+                channels = Int(player.getDouble("audio-params/channel-count") ?? 0)
+                profile = player.getString("current-tracks/audio/codec-profile") ?? ""
+                objects = osc.snapshot.values.filter { !$0.fixed }.count
+                if channels == expected && objects > 0 { break }
+            }
+            print("SMOKE audio: decoder=\(player.getString("current-tracks/audio/decoder-desc") ?? "?")")
+            print("SMOKE audio: profilo=\(profile) canali=\(channels) (attesi \(expected))")
+            print("SMOKE audio: layout=\(player.getString("audio-params/channels") ?? "?")")
+            print("SMOKE osc: oggetti=\(objects) collegato=\(osc.isConnected)")
+            for (id, o) in osc.snapshot.sorted(by: { $0.key < $1.key }).prefix(6) {
+                print(String(format: "SMOKE osc: #%d %@ x=%.2f y=%.2f z=%.2f rms=%.1f", id, o.fixed ? "letto" : "oggetto", o.x, o.y, o.z, o.rmsDB))
+            }
+            playbackOK = channels == expected
+        }
         fflush(stdout)
         player.destroy()
-        exit(engineOK ? 0 : 1)
+        exit(engineOK && playbackOK ? 0 : 1)
     }
 
     private func configurePlayer() {
@@ -102,6 +128,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         p.setOption("slang", AppSettings.mpvLanguageList(settings.subtitleLanguages))
         p.setOption("sid", settings.subtitlesOff ? "no" : "auto")
         p.setOption("screenshot-directory", "~/Desktop")
+        if ProcessInfo.processInfo.environment["TC_SMOKE_TEST"] == "1" {
+            p.setOption("vo", "null")
+            p.setOption("ao", "null")
+            p.setOption("loop-file", "inf")
+        }
 
         // Motore di rendering Atmos (Omniphony) e decoder (harletty), dentro l'app.
         guard let engineDir = Bundle.main.resourceURL?.appendingPathComponent("engine") else { return }
