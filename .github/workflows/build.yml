@@ -1,0 +1,142 @@
+name: Compila l'app
+
+# Compila TC Atmos Player per Mac (Apple Silicon) e lo mette a disposizione
+# da scaricare: scheda "Actions" → ultima esecuzione → "Artifacts".
+# Con un tag v* (es. v0.1.0) crea anche una release con lo zip.
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # Versioni dei componenti, da aggiornare insieme (vedi README).
+  MPV_FORK_TAG: orender-v0.7.0.1        # mgth/mpv: mpv 0.41 + decoder ad_orender
+  OMNIPHONY_REF: v0.7.0                 # mgth/Omniphony: motore liborender (ABI 0.12, bridge_api 0.6)
+  HARLETTY_TAG: v0.9.0                  # harletty/harletty-bridge: decoder TrueHD/DD+/DTS:X/IAMF
+
+jobs:
+  build-macos:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Dipendenze (Homebrew)
+        run: |
+          brew update
+          brew install meson ninja pkg-config ffmpeg libass libplacebo libbluray uchardet
+
+      - name: Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Sorgenti di Omniphony (motore)
+        uses: actions/checkout@v5
+        with:
+          repository: mgth/Omniphony
+          ref: ${{ env.OMNIPHONY_REF }}
+          path: deps/omniphony
+
+      - name: Cache Rust
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            deps/omniphony/omniphony-renderer/target
+          key: rust-${{ runner.os }}-${{ env.OMNIPHONY_REF }}-${{ hashFiles('deps/omniphony/omniphony-renderer/Cargo.lock') }}
+
+      - name: Compila liborender
+        working-directory: deps/omniphony/omniphony-renderer
+        env:
+          RUSTFLAGS: -A dead_code
+        run: cargo build --release -p orender_ffi
+
+      - name: Decoder harletty-bridge (release ${{ env.HARLETTY_TAG }})
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p deps/harletty && cd deps/harletty
+          gh release download "$HARLETTY_TAG" -R harletty/harletty-bridge -p 'harletty-bridge-*-macos-arm64.zip'
+          unzip -o harletty-bridge-*-macos-arm64.zip -d extracted
+          find extracted -type f | sort
+
+      - name: Prepara la cartella del motore
+        run: |
+          mkdir -p deps/engine/licenses
+          cp deps/omniphony/omniphony-renderer/target/release/liborender.dylib deps/engine/
+          find deps/harletty/extracted -name 'libharletty_*_bridge.dylib' -exec cp {} deps/engine/ \;
+          ls deps/engine/libharletty_dolby_bridge.dylib
+          find deps/harletty/extracted -maxdepth 2 -type f \( -iname '*licen*' -o -iname '*notice*' -o -iname 'COPYING*' \) \
+            -exec sh -c 'cp "$1" "deps/engine/licenses/harletty-$(basename "$1")"' _ {} \;
+          cp deps/omniphony/LICENSE deps/engine/licenses/Omniphony-LICENSE.txt
+          for f in deps/engine/*.dylib; do echo "== $f"; otool -L "$f"; done
+
+      - name: Sorgenti di mpv (fork mgth/mpv)
+        run: |
+          git clone --depth 1 --branch "$MPV_FORK_TAG" https://github.com/mgth/mpv.git deps/mpv
+          cp deps/mpv/LICENSE.GPL deps/engine/licenses/mpv-LICENSE.GPL.txt
+
+      - name: Compila libmpv (con ad_orender)
+        working-directory: deps/mpv
+        run: |
+          export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+          meson setup _b --prefix="$GITHUB_WORKSPACE/deps/mpv-prefix" --buildtype=release \
+            -Dlibmpv=true -Dcplayer=false -Dgpl=true -Dorender=enabled \
+            -Dcocoa=enabled -Dgl-cocoa=enabled -Dvideotoolbox-gl=enabled -Dcoreaudio=enabled \
+            -Dlibbluray=enabled -Dswift-build=disabled -Dmacos-cocoa-cb=disabled \
+            -Dmacos-media-player=disabled -Dmacos-touchbar=disabled -Dvulkan=disabled \
+            -Dlua=disabled -Djavascript=disabled -Dmanpage-build=disabled -Dhtml-build=disabled
+          meson compile -C _b
+          meson install -C _b
+          ls -la "$GITHUB_WORKSPACE/deps/mpv-prefix/lib"
+
+      - name: Compila l'app
+        env:
+          MPV_PREFIX: ${{ github.workspace }}/deps/mpv-prefix
+          MPV_SRC: ${{ github.workspace }}/deps/mpv
+          ENGINE_DIR: ${{ github.workspace }}/deps/engine
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then export APP_VERSION="${GITHUB_REF_NAME#v}"; fi
+          bash scripts/build-app.sh
+
+      - name: Prova di avvio
+        run: |
+          APP="build/app/TC Atmos Player.app"
+          "$APP/Contents/MacOS/TCAtmosPlayer" > build/app/avvio.log 2>&1 &
+          PID=$!
+          sleep 10
+          if kill -0 $PID 2>/dev/null; then
+            echo "L'app è partita e resta aperta."
+            kill $PID || true
+          else
+            echo "!! l'app si è chiusa subito"
+            cat build/app/avvio.log
+            exit 1
+          fi
+          cat build/app/avvio.log || true
+
+      - name: Comprimi
+        run: |
+          cd build/app
+          ditto -c -k --sequesterRsrc --keepParent "TC Atmos Player.app" "TC-Atmos-Player-macOS.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TC-Atmos-Player-macOS
+          path: build/app/TC-Atmos-Player-macOS.zip
+          retention-days: 30
+
+      - name: Release (solo per i tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "build/app/TC-Atmos-Player-macOS.zip" \
+            --title "TC Atmos Player $GITHUB_REF_NAME" --notes "App per Mac Apple Silicon (macOS 15 o successivo)."
