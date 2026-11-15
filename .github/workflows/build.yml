@@ -116,6 +116,7 @@ jobs:
           curl -fsSL -o build/joc_atmos_1s.eac3 \
             "https://raw.githubusercontent.com/harletty/harletty-bridge/$HARLETTY_TAG/harletty/tests/fixtures/joc_atmos_1s.eac3"
           TC_SMOKE_TEST=1 TC_SMOKE_FILE="$PWD/build/joc_atmos_1s.eac3" "$APP/Contents/MacOS/TCCinemaPlayer"
+          cat ~/Library/Logs/"TC Cinema Player"/app.log || true
           # Avvio con interfaccia: informativo (le macchine di CI spesso non hanno OpenGL).
           "$APP/Contents/MacOS/TCCinemaPlayer" > build/app/avvio.log 2>&1 &
           PID=$!

@@ -110,6 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             // Seconda apertura: il motore viene ricreato e la vista 3D deve riagganciarlo.
             player.command(["loadfile", file, "replace"])
             Thread.sleep(forTimeInterval: 1)
+            osc.clear()
             var objects2 = 0
             let deadline2 = Date().addingTimeInterval(20)
             while Date() < deadline2 {
