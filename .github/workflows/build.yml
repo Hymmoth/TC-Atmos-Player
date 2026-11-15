@@ -89,7 +89,7 @@ jobs:
           meson setup _b --prefix="$GITHUB_WORKSPACE/deps/mpv-prefix" --buildtype=release \
             -Dlibmpv=true -Dcplayer=false -Dgpl=true -Dorender=enabled \
             -Dcocoa=enabled -Dgl-cocoa=enabled -Dvideotoolbox-gl=enabled -Dcoreaudio=enabled \
-            -Dlibbluray=enabled -Dswift-build=disabled -Dmacos-cocoa-cb=disabled \
+            -Dlibbluray=enabled -Dmacos-cocoa-cb=disabled \
             -Dmacos-media-player=disabled -Dmacos-touchbar=disabled -Dvulkan=disabled \
             -Dlua=disabled -Djavascript=disabled -Dmanpage-build=disabled -Dhtml-build=disabled
           meson compile -C _b
