@@ -41,7 +41,7 @@ private struct GeneralPane: View {
     var body: some View {
         Form {
             Section {
-                TextField("Lingue audio", text: $settings.audioLanguages, prompt: Text("ita, eng"))
+                TextField("Lingue audio", text: $settings.audioLanguages, prompt: Text("eng, ita"))
                 Toggle("Preferisci le tracce Atmos", isOn: $settings.preferAtmos)
                 Text("Tra le tracce nella lingua preferita sceglie quella con Atmos, se c'è.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -49,9 +49,11 @@ private struct GeneralPane: View {
                 Text("Audio")
             }
             Section {
-                Toggle("Sottotitoli disattivati all'apertura", isOn: $settings.subtitlesOff)
                 TextField("Lingue sottotitoli", text: $settings.subtitleLanguages, prompt: Text("ita"))
                     .disabled(settings.subtitlesOff)
+                Text("Se l'audio è in un'altra lingua si attivano i sottotitoli completi; se è nella stessa lingua, solo i forced (se ci sono).")
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle("Nessun sottotitolo automatico", isOn: $settings.subtitlesOff)
             } header: {
                 Text("Sottotitoli")
             }

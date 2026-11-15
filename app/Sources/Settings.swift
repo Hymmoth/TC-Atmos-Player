@@ -115,13 +115,20 @@ final class AppSettings: ObservableObject {
 
     private init() {
         defaults.register(defaults: [
-            "audioLanguages": "ita, eng",
+            "audioLanguages": "eng, ita",
             "subtitleLanguages": "ita",
-            "subtitlesOff": true,
+            "subtitlesOff": false,
             "preferAtmos": true,
             "audioDevice": "auto",
             "layoutId": "7.1.4",
         ])
+        // Prima versione: i predefiniti erano audio "ita, eng" e sottotitoli spenti.
+        // Se non sono stati cambiati a mano, si passa ai nuovi predefiniti.
+        if defaults.integer(forKey: "settingsVersion") < 2 {
+            if defaults.string(forKey: "audioLanguages") == "ita, eng" { defaults.removeObject(forKey: "audioLanguages") }
+            if defaults.object(forKey: "subtitlesOff") as? Bool == true { defaults.removeObject(forKey: "subtitlesOff") }
+            defaults.set(2, forKey: "settingsVersion")
+        }
         audioLanguages = defaults.string(forKey: "audioLanguages") ?? ""
         subtitleLanguages = defaults.string(forKey: "subtitleLanguages") ?? ""
         subtitlesOff = defaults.bool(forKey: "subtitlesOff")

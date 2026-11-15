@@ -28,10 +28,15 @@ Serve macOS 15 o successivo su un Mac con chip Apple.
   riproduzione di una traccia Atmos compare il riquadro giallo **ATMOS** nella barra.
 - **Vista 3D:** menu *Vista → Vista 3D* (tasto 3). Mostra la stanza con i diffusori del
   layout e gli oggetti in tempo reale; la dimensione delle sfere segue il livello.
-  Trascina per ruotare, scorri per lo zoom.
+  Trascina per ruotare, scorri per lo zoom. Il cursore "Ritardo" allinea il movimento a
+  quello che senti (le posizioni arrivano prima del suono, di quanto dura il buffer audio).
 - **Preferenze (⌘,):**
-  - *Generale:* lingue audio e sottotitoli preferite, "Preferisci le tracce Atmos",
-    sottotitoli disattivati all'apertura.
+  - *Generale:* lingue audio e sottotitoli preferite (predefinite: audio inglese poi
+    italiano, sottotitoli italiano) e "Preferisci le tracce Atmos". Vince la lingua;
+    dentro la lingua si sceglie l'Atmos. Sottotitoli: se l'audio è in un'altra lingua si
+    attivano quelli completi, se è nella stessa lingua solo i forced (anche quando cambi
+    traccia audio durante la visione). Se scegli tu un sottotitolo, l'app non lo cambia più
+    per quel file.
   - *Audio:* dispositivo di uscita e layout dei canali, con l'ordine dei canali.
   - *Scorciatoie:* tutte personalizzabili.
 

@@ -15,6 +15,14 @@ final class Room3DWindowController: NSWindowController, NSWindowDelegate {
     private let statusLabel = NSTextField(labelWithString: "")
     private let showBedCheckbox = NSButton(checkboxWithTitle: "Mostra canali del letto", target: nil, action: nil)
     private let showLabelsCheckbox = NSButton(checkboxWithTitle: "Nomi", target: nil, action: nil)
+    private let delaySlider = NSSlider(value: 0.25, minValue: 0, maxValue: 1, target: nil, action: nil)
+    private let delayLabel = NSTextField(labelWithString: "")
+    /// Ritardo della vista rispetto ai dati: le posizioni arrivano quando l'audio è
+    /// decodificato, cioè prima di quando lo si sente (buffer audio).
+    private var viewDelay: Double {
+        get { UserDefaults.standard.object(forKey: "view3DDelay") as? Double ?? 0.25 }
+        set { UserDefaults.standard.set(newValue, forKey: "view3DDelay") }
+    }
 
     init(osc: OSCClient) {
         self.osc = osc
@@ -51,8 +59,19 @@ final class Room3DWindowController: NSWindowController, NSWindowDelegate {
         showLabelsCheckbox.state = .off
         let reset = NSButton(title: "Ripristina vista", target: self, action: #selector(resetCamera))
         reset.bezelStyle = .rounded
+        delaySlider.doubleValue = viewDelay
+        delaySlider.target = self
+        delaySlider.action = #selector(delayChanged(_:))
+        delaySlider.widthAnchor.constraint(equalToConstant: 110).isActive = true
+        delaySlider.toolTip = "Ritarda la vista per allinearla a quello che senti"
+        delayLabel.textColor = .secondaryLabelColor
+        delayLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+        updateDelayLabel()
         bar.addArrangedSubview(statusLabel)
         bar.addArrangedSubview(NSView())
+        bar.addArrangedSubview(NSTextField(labelWithString: "Ritardo"))
+        bar.addArrangedSubview(delaySlider)
+        bar.addArrangedSubview(delayLabel)
         bar.addArrangedSubview(showBedCheckbox)
         bar.addArrangedSubview(showLabelsCheckbox)
         bar.addArrangedSubview(reset)
@@ -121,6 +140,15 @@ final class Room3DWindowController: NSWindowController, NSWindowDelegate {
         scene.rootNode.addChildNode(speakersNode)
         scene.rootNode.addChildNode(objectsNode)
         showLayout(AppSettings.shared.layout)
+    }
+
+    @objc private func delayChanged(_ sender: NSSlider) {
+        viewDelay = (sender.doubleValue * 100).rounded() / 100
+        updateDelayLabel()
+    }
+
+    private func updateDelayLabel() {
+        delayLabel.stringValue = "\(Int(viewDelay * 1000)) ms"
     }
 
     @objc private func resetCamera() {
@@ -202,13 +230,14 @@ final class Room3DWindowController: NSWindowController, NSWindowDelegate {
 
     private func startTimer() {
         guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
             self?.tick()
         }
     }
 
     private func tick() {
         let objects = osc.snapshot
+        let displayTime = ProcessInfo.processInfo.systemUptime - viewDelay
         let showBed = showBedCheckbox.state == .on
         let showLabels = showLabelsCheckbox.state == .on
         var visibleIds = Set<Int>()
@@ -235,7 +264,8 @@ final class Room3DWindowController: NSWindowController, NSWindowDelegate {
                 objectsNode.addChildNode(node)
                 objectNodes[id] = node
             }
-            node.position = scenePosition(x: o.x, y: o.y, z: o.z)
+            let pos = o.position(at: displayTime)
+            node.position = scenePosition(x: pos.x, y: pos.y, z: pos.z)
             // Raggio in base al livello RMS (da -60 dB a 0 dB)
             let level = max(0, min(1, (o.rmsDB + 60) / 60))
             let r = CGFloat(o.fixed ? 0.025 : 0.03 + 0.05 * level)

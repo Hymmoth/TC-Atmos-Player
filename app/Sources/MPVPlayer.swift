@@ -14,7 +14,15 @@ struct Track {
     let external: Bool
     let ffIndex: Int?
     let srcId: Int?
+    let forcedFlag: Bool
     var isAtmos: Bool = false
+
+    /// Sottotitoli "forced": dal flag del file o dal titolo.
+    var isForced: Bool {
+        if forcedFlag { return true }
+        let t = (title ?? "").lowercased()
+        return t.contains("forced") || t.contains("forzat")
+    }
 
     init?(json: [String: Any]) {
         guard let id = json["id"] as? Int, let type = json["type"] as? String else { return nil }
@@ -30,6 +38,7 @@ struct Track {
         external = json["external"] as? Bool ?? false
         ffIndex = json["ff-index"] as? Int
         srcId = json["src-id"] as? Int
+        forcedFlag = json["forced"] as? Bool ?? false
         if let p = codecProfile, p.localizedCaseInsensitiveContains("atmos") || p.contains("DTS:X") {
             isAtmos = true
         }
@@ -85,6 +94,7 @@ struct Track {
         if !fmt.isEmpty { parts.append(fmt) }
         if isAtmos { parts.append("ATMOS") }
         if let t = title, !t.isEmpty { parts.append(t) }
+        if type == "sub" && isForced { parts.append("forced") }
         if external { parts.append("esterno") }
         return parts.joined(separator: " · ")
     }
@@ -135,6 +145,7 @@ final class MPVPlayer {
                                ("track-list", MPV_FORMAT_NONE),
                                ("current-tracks/audio/codec-profile", MPV_FORMAT_NONE),
                                ("audio-out-params/channels", MPV_FORMAT_NONE),
+                               ("aid", MPV_FORMAT_NONE),
                                ("video-params/gamma", MPV_FORMAT_NONE),
                                ("media-title", MPV_FORMAT_NONE),
                                ("eof-reached", MPV_FORMAT_FLAG),

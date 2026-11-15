@@ -9,6 +9,24 @@ struct AudioObject {
     var fixed = false        // canale del letto (bed) invece che oggetto dinamico
     var rmsDB: Double = -120
     var lastUpdate = Date()
+    /// Posizioni ricevute di recente (tempo di ricezione, x, y, z), per l'interpolazione.
+    var history: [(t: TimeInterval, x: Double, y: Double, z: Double)] = []
+
+    /// Posizione al tempo `t`, interpolata linearmente tra i campioni ricevuti.
+    func position(at t: TimeInterval) -> (x: Double, y: Double, z: Double) {
+        guard let first = history.first else { return (x, y, z) }
+        if t <= first.t { return (first.x, first.y, first.z) }
+        for i in history.indices.dropFirst() {
+            let b = history[i]
+            if t <= b.t {
+                let a = history[i - 1]
+                let k = b.t > a.t ? (t - a.t) / (b.t - a.t) : 1
+                return (a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, a.z + (b.z - a.z) * k)
+            }
+        }
+        let last = history[history.count - 1]
+        return (last.x, last.y, last.z)
+    }
 }
 
 /// Valore di un argomento OSC.
@@ -311,6 +329,17 @@ final class OSCClient {
                 }
                 if args.count >= 9, let n = args[8].string { o.name = n }
                 o.lastUpdate = Date()
+                let now = ProcessInfo.processInfo.systemUptime
+                // Il motore manda una posizione solo quando cambia: dopo una pausa
+                // si ripete la vecchia posizione appena prima, così l'oggetto non
+                // "scivola" lentamente per tutto l'intervallo.
+                if let last = o.history.last, now - last.t > 0.1 {
+                    o.history.append((now - 0.02, last.x, last.y, last.z))
+                }
+                o.history.append((now, o.x, o.y, o.z))
+                if let cut = o.history.firstIndex(where: { $0.t >= now - 3 }), cut > 1 {
+                    o.history.removeFirst(cut - 1)
+                }
                 objects[id] = o
             case "meta":
                 var o = objects[id] ?? AudioObject()

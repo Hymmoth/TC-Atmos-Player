@@ -28,6 +28,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
     private var probeResults: [tc_audio_stream_info]?
     private var autoSelectDone = false
     private var userPickedAudio = false
+    private var userPickedSubtitle = false
     private var fileLoaded = false
     private var sizedForCurrentFile = false
 
@@ -210,6 +211,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
         probeResults = nil
         autoSelectDone = false
         userPickedAudio = false
+        userPickedSubtitle = false
         fileLoaded = false
         sizedForCurrentFile = false
         osc.clear()
@@ -219,7 +221,8 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
 
         // Selezione automatica a ogni file (non ereditata dal file precedente).
         player.setString("aid", "auto")
-        player.setString("sid", settings.subtitlesOff ? "no" : "auto")
+        // I sottotitoli li sceglie l'app (applySubtitlePreference) dopo l'apertura.
+        player.setString("sid", "no")
         player.loadFile(url)
         player.setFlag("pause", false)
         placeholder.isHidden = true
@@ -279,6 +282,34 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
         if let best = candidates.first(where: { $0.isAtmos }), best.id != current?.id {
             player.setString("aid", String(best.id))
             player.command(["show-text", "Traccia audio: \(best.menuTitle)", "2500"])
+        }
+    }
+
+    /// Sottotitoli automatici: nella prima lingua preferita che ne ha,
+    /// i completi se l'audio è in un'altra lingua, solo i forced se l'audio è nella stessa.
+    private func applySubtitlePreference() {
+        guard fileLoaded, !userPickedSubtitle else { return }
+        let tracks = player.tracks
+        let subs = tracks.filter { $0.type == "sub" }
+        var chosen: Track?
+        if !settings.subtitlesOff {
+            let audioLang = (tracks.first { $0.type == "audio" && $0.selected }?.lang ?? "").lowercased()
+            for codes in AppSettings.languageCodes(settings.subtitleLanguages) {
+                let inLang = subs.filter { codes.contains(($0.lang ?? "").lowercased()) }
+                if inLang.isEmpty { continue }
+                if codes.contains(audioLang) {
+                    chosen = inLang.first { $0.isForced }
+                } else {
+                    let full = inLang.filter { !$0.isForced }
+                    chosen = full.first { !($0.title ?? "").uppercased().contains("SDH") } ?? full.first
+                }
+                break
+            }
+        }
+        let current = subs.first { $0.selected }
+        if chosen?.id != current?.id {
+            player.setString("sid", chosen.map { String($0.id) } ?? "no")
+            AppLog.write("sottotitoli: \(chosen?.menuTitle ?? "nessuno")")
         }
     }
 
@@ -343,6 +374,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
     }
 
     @objc func selectSubtitleTrack(_ sender: NSMenuItem) {
+        userPickedSubtitle = true
         player.setString("sid", sender.tag < 0 ? "no" : String(sender.tag))
     }
 
@@ -353,6 +385,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
     }
 
     @objc func nextSubtitleTrack() {
+        userPickedSubtitle = true
         player.command(["cycle", "sub"])
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             guard let self = self else { return }
@@ -428,6 +461,7 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
         }
         refreshTrackUI()
         applyAtmosPreference()
+        applySubtitlePreference()
         showControls()
     }
 
@@ -472,6 +506,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
                 let dev = player.getString("audio-device") ?? "?"
                 AppLog.write("audio: \(player.getString("current-tracks/audio/codec-profile") ?? "-") | decoder \(player.getString("current-tracks/audio/decoder-desc") ?? "?") | canali \(ch) → uscita \(out) | dispositivo \(dev)")
             }
+        case "aid":
+            // Cambio di lingua dell'audio: si aggiornano i sottotitoli (completi o forced).
+            applySubtitlePreference()
         case "video-params/gamma":
             updateHDR()
         case "media-title":

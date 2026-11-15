@@ -144,7 +144,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         p.setOption("audio-device", settings.audioDevice)
         p.setOption("alang", AppSettings.mpvLanguageList(settings.audioLanguages))
         p.setOption("slang", AppSettings.mpvLanguageList(settings.subtitleLanguages))
-        p.setOption("sid", settings.subtitlesOff ? "no" : "auto")
+        p.setOption("sid", "no")
         p.setOption("screenshot-directory", "~/Desktop")
         if ProcessInfo.processInfo.environment["TC_SMOKE_TEST"] == "1" {
             p.setOption("vo", "null")
