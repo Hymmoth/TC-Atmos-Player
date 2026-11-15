@@ -13,9 +13,10 @@ canali del layout scelto. Le altre tracce si riproducono normalmente.
 2. In fondo alla pagina, in **Artifacts**, scarica **TC-Atmos-Player-macOS**.
 3. Estrai lo zip (a volte serve due volte: GitHub mette lo zip dentro un altro zip) e
    sposta **TC Atmos Player** in Applicazioni.
-4. La prima volta macOS la blocca perché non è firmata da Apple: tasto destro sull'app →
-   **Apri** → **Apri**. In alternativa: Impostazioni di Sistema → Privacy e sicurezza →
-   **Apri comunque**.
+4. La prima volta macOS la blocca perché non è firmata da Apple. Prova ad aprirla, chiudi
+   l'avviso, poi vai in Impostazioni di Sistema → **Privacy e sicurezza**: in fondo c'è
+   **Apri comunque**. Basta farlo una volta. In alternativa, dal Terminale:
+   `xattr -dr com.apple.quarantine "/Applications/TC Atmos Player.app"`
 
 Serve macOS 15 o successivo su un Mac con chip Apple.
 
