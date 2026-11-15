@@ -21,7 +21,10 @@ os.makedirs(d.lib_path(binary), exist_ok=True)
 print(">> librerie collegate all'eseguibile")
 libs, libs_rel = d.libraries(binary)
 d.process_libraries(libs, libs_rel, binary)
-d.remove_dev_tools_rapths(binary)
+try:
+    d.remove_dev_tools_rapths(binary)
+except subprocess.CalledProcessError:
+    pass  # nessun rpath verso gli strumenti di sviluppo
 
 # Le dylib del motore (liborender, bridge) sono caricate con dlopen:
 # devono dipendere solo da librerie di sistema.

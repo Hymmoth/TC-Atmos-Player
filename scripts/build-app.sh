@@ -33,7 +33,7 @@ swiftc -O -target arm64-apple-macos15.0 -module-name TCAtmosPlayer \
     "$SRC"/*.swift "$OUT/AtmosProbe.o" \
     -L "$MPV_PREFIX/lib" -lmpv \
     -L "$FFMPEG/lib" -lavformat -lavcodec -lavutil \
-    -framework Cocoa -framework OpenGL -framework QuartzCore -framework SceneKit -framework SwiftUI \
+    -Xcc -DGL_SILENCE_DEPRECATION -framework Cocoa -framework OpenGL -framework QuartzCore -framework SceneKit -framework SwiftUI \
     -o "$APP/Contents/MacOS/TCAtmosPlayer"
 
 echo ">> Info.plist e risorse"
