@@ -69,6 +69,16 @@ final class OSCClient {
     private var connectedLogged = false
     /// Il motore non ci conosce (es. nuovo motore dopo un cambio di traccia): va rifatta la registrazione.
     private var needsRegister = false
+
+    // Sincronizzazione con l'ascolto: il motore descrive ogni blocco audio quando lo
+    // rende (in anticipo) e dice a che punto è l'ascolto; i messaggi degli oggetti
+    // vengono applicati quando il loro blocco viene davvero sentito.
+    private var currentBlock: UInt64?
+    private var heardPos: Double?
+    private var heardRate: Double = 48000
+    private var heardAt: TimeInterval = 0
+    private var pending: [(block: UInt64, address: String, args: [OSCValue])] = []
+    private var positionMessages = 0
     private var lastStatusLog = Date.distantPast
 
     init(enginePort: UInt16) {
@@ -116,7 +126,7 @@ final class OSCClient {
         setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &bufSize, socklen_t(MemoryLayout<Int32>.size))
         var sendSize: Int32 = 65536
         setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sendSize, socklen_t(MemoryLayout<Int32>.size))
-        var tv = timeval(tv_sec: 0, tv_usec: 500_000)
+        var tv = timeval(tv_sec: 0, tv_usec: 10_000)
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
 
         AppLog.write("OSC: client sulla porta \(localPort), motore atteso sulla \(enginePort)")
@@ -135,6 +145,37 @@ final class OSCClient {
     /// Dimentica gli oggetti (es. quando si apre un altro file).
     func clear() {
         lock.lock(); objects.removeAll(); lock.unlock()
+        resetSync = true
+    }
+    private var resetSync = false
+
+    /// Posizione di ascolto attuale, stimata dall'ultimo avviso del motore.
+    private var heardNow: Double? {
+        guard let pos = heardPos else { return nil }
+        let elapsed = min(ProcessInfo.processInfo.systemUptime - heardAt, 0.5)
+        return pos + elapsed * heardRate
+    }
+
+    private func flushPending() {
+        if resetSync {
+            resetSync = false
+            pending.removeAll(); currentBlock = nil; heardPos = nil
+        }
+        guard !pending.isEmpty else { return }
+        guard let heard = heardNow else {
+            // Niente più avvisi di ascolto: si applica tutto subito.
+            for m in pending { handle(address: m.address, args: m.args) }
+            pending.removeAll()
+            return
+        }
+        var applied = 0
+        for m in pending {
+            if Double(m.block) > heard { break }
+            handle(address: m.address, args: m.args)
+            applied += 1
+        }
+        if applied > 0 { pending.removeFirst(applied) }
+        if pending.count > 50_000 { pending.removeFirst(pending.count - 50_000) }
     }
 
     private func loop() {
@@ -151,7 +192,8 @@ final class OSCClient {
                 lock.lock()
                 let total = objects.count, dynamic = objects.values.filter { !$0.fixed }.count
                 lock.unlock()
-                AppLog.write("OSC: ultimo pacchetto \(silent > 1e6 ? "mai" : String(format: "%.1f s fa", silent)), oggetti \(dynamic) (+\(total - dynamic) letto)")
+                AppLog.write("OSC: ultimo pacchetto \(silent > 1e6 ? "mai" : String(format: "%.1f s fa", silent)), oggetti \(dynamic) (+\(total - dynamic) letto), posizioni ricevute \(positionMessages), sincronia \(heardPos == nil ? "no" : "sì"), in coda \(pending.count)")
+                positionMessages = 0
                 if silent > 6 { connectedLogged = false }
             }
             if needsRegister, now.timeIntervalSince(lastRegister) > 0.5 {
@@ -172,6 +214,7 @@ final class OSCClient {
                 lastHeartbeat = now
             }
 
+            flushPending()
             let n = buffer.withUnsafeMutableBytes { recv(fd, $0.baseAddress, 65536, 0) }
             if n > 0 {
                 lock.lock(); lastReceive = Date(); lock.unlock()
@@ -266,7 +309,8 @@ final class OSCClient {
             return
         }
         // Interessano solo gli oggetti: si evita di decodificare il resto.
-        guard address.hasPrefix("/omniphony/object/") || address.hasPrefix("/omniphony/meter/object/") else { return }
+        guard address.hasPrefix("/omniphony/object/") || address.hasPrefix("/omniphony/meter/object/")
+                || address.hasPrefix("/omniphony/playout/") else { return }
         guard p < d.count, let tags = readString(d, &p), tags.hasPrefix(",") else { return }
         var args: [OSCValue] = []
         for t in tags.dropFirst() {
@@ -300,7 +344,28 @@ final class OSCClient {
             default: return
             }
         }
-        handle(address: address, args: args)
+        if address == "/omniphony/playout/block" {
+            if let pos = args.first?.int { currentBlock = UInt64(max(0, pos)) }
+            return
+        }
+        if address == "/omniphony/playout/heard" {
+            guard let pos = args.first?.int else { return }
+            let newPos = Double(max(0, pos))
+            if let old = heardPos, newPos < old - heardRate {
+                // Salto all'indietro (ricerca): la coda non vale più.
+                pending.removeAll()
+            }
+            heardPos = newPos
+            if args.count >= 2, let r = args[1].double, r > 0 { heardRate = r }
+            heardAt = ProcessInfo.processInfo.systemUptime
+            return
+        }
+        if address.hasSuffix("/xyz") || address.hasSuffix("/aed") { positionMessages += 1 }
+        if heardPos != nil, let block = currentBlock, address.hasPrefix("/omniphony/object/") {
+            pending.append((block, address, args))
+        } else {
+            handle(address: address, args: args)
+        }
     }
 
     private func handle(address: String, args: [OSCValue]) {

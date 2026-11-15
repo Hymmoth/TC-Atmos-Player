@@ -21,7 +21,9 @@ struct Track {
     var isForced: Bool {
         if forcedFlag { return true }
         let t = (title ?? "").lowercased()
-        return t.contains("forced") || t.contains("forzat")
+        let words = t.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init)
+        return t.contains("forced") || t.contains("forzat") || t.contains("forcé")
+            || words.contains("frc") || words.contains("forc")
     }
 
     init?(json: [String: Any]) {

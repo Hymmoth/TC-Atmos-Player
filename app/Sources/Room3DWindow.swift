@@ -15,13 +15,13 @@ final class Room3DWindowController: NSWindowController, NSWindowDelegate {
     private let statusLabel = NSTextField(labelWithString: "")
     private let showBedCheckbox = NSButton(checkboxWithTitle: "Mostra canali del letto", target: nil, action: nil)
     private let showLabelsCheckbox = NSButton(checkboxWithTitle: "Nomi", target: nil, action: nil)
-    private let delaySlider = NSSlider(value: 0.25, minValue: 0, maxValue: 1, target: nil, action: nil)
+    private let delaySlider = NSSlider(value: 0, minValue: -0.5, maxValue: 0.5, target: nil, action: nil)
     private let delayLabel = NSTextField(labelWithString: "")
-    /// Ritardo della vista rispetto ai dati: le posizioni arrivano quando l'audio è
-    /// decodificato, cioè prima di quando lo si sente (buffer audio).
+    /// Correzione fine della sincronia (la sincronia vera la dà il motore, che dice
+    /// quando ogni blocco audio viene sentito). Positiva = vista più in ritardo.
     private var viewDelay: Double {
-        get { UserDefaults.standard.object(forKey: "view3DDelay") as? Double ?? 0.25 }
-        set { UserDefaults.standard.set(newValue, forKey: "view3DDelay") }
+        get { UserDefaults.standard.object(forKey: "view3DOffset") as? Double ?? 0 }
+        set { UserDefaults.standard.set(newValue, forKey: "view3DOffset") }
     }
 
     init(osc: OSCClient) {
@@ -63,13 +63,13 @@ final class Room3DWindowController: NSWindowController, NSWindowDelegate {
         delaySlider.target = self
         delaySlider.action = #selector(delayChanged(_:))
         delaySlider.widthAnchor.constraint(equalToConstant: 110).isActive = true
-        delaySlider.toolTip = "Ritarda la vista per allinearla a quello che senti"
+        delaySlider.toolTip = "Correzione fine della sincronia con l'audio (di solito 0)"
         delayLabel.textColor = .secondaryLabelColor
         delayLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         updateDelayLabel()
         bar.addArrangedSubview(statusLabel)
         bar.addArrangedSubview(NSView())
-        bar.addArrangedSubview(NSTextField(labelWithString: "Ritardo"))
+        bar.addArrangedSubview(NSTextField(labelWithString: "Correzione"))
         bar.addArrangedSubview(delaySlider)
         bar.addArrangedSubview(delayLabel)
         bar.addArrangedSubview(showBedCheckbox)
@@ -237,7 +237,8 @@ final class Room3DWindowController: NSWindowController, NSWindowDelegate {
 
     private func tick() {
         let objects = osc.snapshot
-        let displayTime = ProcessInfo.processInfo.systemUptime - viewDelay
+        // 60 ms dietro l'ultimo dato: lascia due campioni tra cui interpolare.
+        let displayTime = ProcessInfo.processInfo.systemUptime - 0.06 - viewDelay
         let showBed = showBedCheckbox.state == .on
         let showLabels = showLabelsCheckbox.state == .on
         var visibleIds = Set<Int>()
