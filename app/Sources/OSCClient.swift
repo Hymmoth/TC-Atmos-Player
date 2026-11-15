@@ -47,6 +47,7 @@ final class OSCClient {
     private var lastReceive = Date.distantPast
     private var lastRegister = Date.distantPast
     private var lastHeartbeat = Date.distantPast
+    private var meteringRequested = false
 
     init(enginePort: UInt16) {
         self.enginePort = enginePort
@@ -126,6 +127,7 @@ final class OSCClient {
                 send(address: "/omniphony/register", int: Int32(localPort))
                 lastRegister = now
                 lastHeartbeat = now
+                meteringRequested = false
             } else if now.timeIntervalSince(lastHeartbeat) > 4 {
                 send(address: "/omniphony/heartbeat", int: Int32(localPort))
                 lastHeartbeat = now
@@ -134,6 +136,11 @@ final class OSCClient {
             let n = buffer.withUnsafeMutableBytes { recv(fd, $0.baseAddress, 65536, 0) }
             if n > 0 {
                 lock.lock(); lastReceive = Date(); lock.unlock()
+                if !meteringRequested {
+                    // Chiede i livelli degli oggetti (per la dimensione delle sfere).
+                    send(address: "/omniphony/control/metering", int: 1)
+                    meteringRequested = true
+                }
                 parsePacket(buffer[0..<n])
             }
         }

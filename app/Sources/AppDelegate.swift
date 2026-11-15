@@ -100,8 +100,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             print("SMOKE audio: profilo=\(profile) canali=\(channels) (attesi \(expected))")
             print("SMOKE audio: layout=\(player.getString("audio-params/channels") ?? "?")")
             print("SMOKE osc: oggetti=\(objects) collegato=\(osc.isConnected)")
-            for (id, o) in osc.snapshot.sorted(by: { $0.key < $1.key }).prefix(6) {
-                print(String(format: "SMOKE osc: #%d %@ x=%.2f y=%.2f z=%.2f rms=%.1f", id, o.fixed ? "letto" : "oggetto", o.x, o.y, o.z, o.rmsDB))
+            Thread.sleep(forTimeInterval: 1.5)
+            for (id, o) in osc.snapshot.sorted(by: { $0.key < $1.key }) {
+                print(String(format: "SMOKE osc: #%d %@ %@ x=%.2f y=%.2f z=%.2f rms=%.1f", id,
+                             o.fixed ? "letto" : "oggetto", o.label, o.x, o.y, o.z, o.rmsDB))
             }
             playbackOK = channels == expected
         }
