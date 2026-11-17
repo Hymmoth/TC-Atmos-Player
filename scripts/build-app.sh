@@ -33,7 +33,7 @@ swiftc -O -target arm64-apple-macos15.0 -module-name TCCinemaPlayer \
     "$SRC"/*.swift "$OUT/AtmosProbe.o" \
     -L "$MPV_PREFIX/lib" -lmpv \
     -L "$FFMPEG/lib" -lavformat -lavcodec -lavutil \
-    -Xcc -DGL_SILENCE_DEPRECATION -framework Cocoa -framework OpenGL -framework QuartzCore -framework SceneKit -framework SwiftUI \
+    -Xcc -DGL_SILENCE_DEPRECATION -framework Cocoa -framework OpenGL -framework QuartzCore -framework SwiftUI \
     -o "$APP/Contents/MacOS/TCCinemaPlayer"
 
 echo ">> Info.plist e risorse"

@@ -26,11 +26,8 @@ Serve macOS 15 o successivo su un Mac con chip Apple.
 - **Tracce audio e sottotitoli:** menu *Audio* e *Sottotitoli*, oppure i due pulsanti
   nella barra dei controlli. Le tracce con oggetti sono segnate **ATMOS**; durante la
   riproduzione di una traccia Atmos compare il riquadro giallo **ATMOS** nella barra.
-- **Vista 3D:** menu *Vista → Vista 3D* (tasto 3). Mostra la stanza con i diffusori del
-  layout e gli oggetti in tempo reale; la dimensione delle sfere segue il livello.
-  Trascina per ruotare, scorri per lo zoom. Il movimento è sincronizzato con quello che
-  senti (il motore dice quando ogni blocco audio viene ascoltato); il cursore "Correzione"
-  serve solo per piccoli aggiustamenti.
+- **Schermo intero:** F, doppio clic o il pulsante nella barra. Gli altri monitor diventano
+  neri (si può disattivare in Preferenze → Generale).
 - **Preferenze (⌘,):**
   - *Generale:* lingue audio e sottotitoli preferite (predefinite: audio inglese poi
     italiano, sottotitoli italiano) e "Preferisci le tracce Atmos". Vince la lingua;
@@ -54,7 +51,6 @@ Serve macOS 15 o successivo su un Mac con chip Apple.
 | Schermo intero | F (Esc per uscire) |
 | Traccia audio successiva | A |
 | Sottotitoli successivi | S |
-| Vista 3D | 3 |
 | Apri | ⌘O |
 
 ## Uscita audio
@@ -90,9 +86,7 @@ dei dischi UHD (profilo 7 FEL) per ora non viene ricostruito.
   basato su [truehdd](https://github.com/truehdd/truehdd) di Rainbaby.
 - **Analisi delle tracce Atmos prima della riproduzione:** FFmpeg (`AtmosProbe.c`).
 
-La vista 3D riceve le posizioni degli oggetti dal motore via OSC sulla porta locale 9137,
-quindi non interferisce con Omniphony Studio se è installato (porta 9000). La
-configurazione del motore usata dall'app sta in
+La configurazione del motore usata dall'app sta in
 `~/Library/Application Support/TC Cinema Player/omniphony/config.yaml` e viene riscritta
 dalle preferenze.
 

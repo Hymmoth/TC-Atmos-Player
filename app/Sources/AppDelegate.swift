@@ -4,9 +4,8 @@ import UniformTypeIdentifiers
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var player: MPVPlayer!
-    private var osc: OSCClient!
     private var playerWindow: PlayerWindowController!
-    private var room3D: Room3DWindowController?
+    private var blackouts: [NSWindow] = []
     private var prefsWindow: NSWindow?
     private var keyMonitor: Any?
     private var pendingURLs: [URL] = []
@@ -28,8 +27,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         configurePlayer()
         player.initialize()
 
-        osc = OSCClient(enginePort: UInt16(EngineConfig.oscPort))
-        osc.start()
 
         // Prova automatica (CI): verifica librerie e motore, senza aprire finestre.
         if ProcessInfo.processInfo.environment["TC_SMOKE_TEST"] == "1" {
@@ -37,9 +34,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
 
-        playerWindow = PlayerWindowController(player: player, osc: osc)
+        playerWindow = PlayerWindowController(player: player)
         playerWindow.onOpenRequest = { [weak self] in self?.openDocument(nil) }
-        playerWindow.onShow3D = { [weak self] in self?.show3D(nil) }
+        playerWindow.onFullScreenChange = { [weak self] on in self?.setBlackout(on) }
         playerWindow.showWindow(nil)
 
         buildMenus()
@@ -89,37 +86,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             print("SMOKE probe: \(n) tracce, atmos=\(n > 0 ? Int(buf[0].is_atmos) : -1), canali=\(n > 0 ? Int(buf[0].channels) : -1)")
             player.command(["loadfile", file, "replace"])
             let expected = settings.layout.speakers.count
-            var channels = 0, profile = "", objects = 0
+            var channels = 0, profile = ""
             let deadline = Date().addingTimeInterval(20)
             while Date() < deadline {
                 Thread.sleep(forTimeInterval: 0.25)
                 channels = Int(player.getDouble("audio-params/channel-count") ?? 0)
                 profile = player.getString("current-tracks/audio/codec-profile") ?? ""
-                objects = osc.snapshot.values.filter { !$0.fixed }.count
-                if channels == expected && objects > 0 { break }
+                if channels == expected && profile.localizedCaseInsensitiveContains("atmos") { break }
             }
             print("SMOKE audio: decoder=\(player.getString("current-tracks/audio/decoder-desc") ?? "?")")
             print("SMOKE audio: profilo=\(profile) canali=\(channels) (attesi \(expected))")
             print("SMOKE audio: layout=\(player.getString("audio-params/channels") ?? "?")")
-            print("SMOKE osc: oggetti=\(objects) collegato=\(osc.isConnected)")
-            Thread.sleep(forTimeInterval: 1.5)
-            for (id, o) in osc.snapshot.sorted(by: { $0.key < $1.key }) {
-                print(String(format: "SMOKE osc: #%d %@ %@ x=%.2f y=%.2f z=%.2f rms=%.1f", id,
-                             o.fixed ? "letto" : "oggetto", o.label, o.x, o.y, o.z, o.rmsDB))
-            }
-            // Seconda apertura: il motore viene ricreato e la vista 3D deve riagganciarlo.
-            player.command(["loadfile", file, "replace"])
-            Thread.sleep(forTimeInterval: 1)
-            osc.clear()
-            var objects2 = 0
-            let deadline2 = Date().addingTimeInterval(20)
-            while Date() < deadline2 {
-                Thread.sleep(forTimeInterval: 0.25)
-                objects2 = osc.snapshot.values.filter { !$0.fixed }.count
-                if objects2 > 0 { break }
-            }
-            print("SMOKE osc dopo riapertura: oggetti=\(objects2)")
-            playbackOK = channels == expected && objects > 0 && objects2 > 0
+            playbackOK = channels == expected && profile.localizedCaseInsensitiveContains("atmos")
         }
         fflush(stdout)
         player.destroy()
@@ -163,9 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             p.setOption("ad-orender-library", lib.path)
             p.setOption("ad-orender-bridge-path", bridges.joined(separator: ":"))
             p.setOption("ad-orender-config", EngineConfig.configURL.path)
-            p.setOption("ad-orender-osc", "yes")
-            p.setOption("ad-orender-osc-rx-port", String(EngineConfig.oscPort))
-            p.setOption("ad-orender-osc-bind", "127.0.0.1")
+            p.setOption("ad-orender-osc", "no")
         } else {
             NSLog("Motore Atmos non trovato in \(engineDir.path): riproduzione senza rendering a oggetti")
         }
@@ -182,9 +158,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             player.setString("slang", AppSettings.mpvLanguageList(settings.subtitleLanguages))
         case "layoutId":
             EngineConfig.write(layout: settings.layout)
-            room3D?.showLayout(settings.layout)
         case "shortcuts":
             updateMenuShortcuts()
+        case "blackoutOtherScreens":
+            if let w = playerWindow.window { setBlackout(w.styleMask.contains(.fullScreen)) }
         default:
             break
         }
@@ -207,7 +184,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        osc?.stop()
         playerWindow?.videoView.videoLayer.uninit()
         player?.destroy()
     }
@@ -264,11 +240,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return out
     }
 
-    @objc func show3D(_ sender: Any?) {
-        if room3D == nil { room3D = Room3DWindowController(osc: osc) }
-        room3D?.showLayout(settings.layout)
-        room3D?.showWindow(nil)
-    }
 
     @objc func togglePause(_ sender: Any?) { playerWindow.togglePause() }
     @objc func seekForward(_ sender: Any?) { playerWindow.seek(by: 10) }
@@ -295,8 +266,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .fullscreen: toggleFullScreenPlayer(nil)
         case .nextAudio: nextAudio(nil)
         case .nextSubtitle: nextSubtitle(nil)
-        case .view3D: show3D(nil)
         case .open: openDocument(nil)
+        }
+    }
+
+    // MARK: Schermi neri
+
+    /// Copre di nero gli altri schermi mentre il film è a schermo intero.
+    private func setBlackout(_ on: Bool) {
+        blackouts.forEach { $0.orderOut(nil) }
+        blackouts.removeAll()
+        guard on, settings.blackoutOtherScreens,
+              let playerScreen = playerWindow.window?.screen else { return }
+        for screen in NSScreen.screens where screen != playerScreen {
+            let w = NSWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
+            w.backgroundColor = .black
+            w.isOpaque = true
+            w.level = .mainMenu + 1
+            w.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+            w.isReleasedWhenClosed = false
+            w.hidesOnDeactivate = false
+            w.setFrame(screen.frame, display: false)
+            w.orderFront(nil)
+            blackouts.append(w)
         }
     }
 
@@ -306,7 +298,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self, !ShortcutRecorder.isRecording else { return event }
             let w = event.window
-            let isPlayerWindow = w === self.playerWindow.window || (self.room3D != nil && w === self.room3D?.window)
+            let isPlayerWindow = w === self.playerWindow.window
             guard isPlayerWindow else { return event }
             // Esc esce dallo schermo intero.
             if event.keyCode == 53, let pw = self.playerWindow.window, pw.styleMask.contains(.fullScreen) {
@@ -404,7 +396,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let viewItem = NSMenuItem()
         let viewMenu = NSMenu(title: "Vista")
         viewMenu.addItem(item("Schermo intero", #selector(toggleFullScreenPlayer(_:)), .fullscreen))
-        viewMenu.addItem(item("Vista 3D", #selector(show3D(_:)), .view3D))
         viewItem.submenu = viewMenu
         main.addItem(viewItem)
 

@@ -108,10 +108,6 @@ struct SpeakerLayout {
 /// È un file privato dell'app: non tocca ~/.config/omniphony/config.yaml
 /// (quello di Omniphony Studio, se installato).
 enum EngineConfig {
-    /// Porta su cui il motore riceve i client OSC (la vista 3D).
-    /// Diversa dalla 9000 di Omniphony Studio, così non si disturbano.
-    static let oscPort = 9137
-
     static var directory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return base.appendingPathComponent("TC Cinema Player/omniphony", isDirectory: true)
@@ -125,9 +121,7 @@ enum EngineConfig {
     static func write(layout: SpeakerLayout) -> URL {
         var y = "# Generato da TC Cinema Player: viene riscritto quando cambi le preferenze.\n"
         y += "render:\n"
-        y += "  osc: true\n"
-        y += "  osc_metering: true\n"
-        y += "  osc_rx_port: \(oscPort)\n"
+        y += "  osc: false\n"
         y += "  current_layout:\n"
         y += "    radius_m: 2.0\n"
         y += "    speakers:\n"

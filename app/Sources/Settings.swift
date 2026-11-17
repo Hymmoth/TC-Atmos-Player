@@ -4,7 +4,7 @@ import Combine
 /// Azioni che si possono associare a una scorciatoia da tastiera.
 enum PlayerAction: String, CaseIterable, Identifiable {
     case playPause, seekForward, seekBackward, seekForwardLong, seekBackwardLong
-    case volumeUp, volumeDown, mute, fullscreen, nextAudio, nextSubtitle, view3D, open
+    case volumeUp, volumeDown, mute, fullscreen, nextAudio, nextSubtitle, open
 
     var id: String { rawValue }
 
@@ -21,7 +21,6 @@ enum PlayerAction: String, CaseIterable, Identifiable {
         case .fullscreen: return "Schermo intero"
         case .nextAudio: return "Traccia audio successiva"
         case .nextSubtitle: return "Sottotitoli successivi"
-        case .view3D: return "Vista 3D"
         case .open: return "Apri file…"
         }
     }
@@ -39,7 +38,6 @@ enum PlayerAction: String, CaseIterable, Identifiable {
         case .fullscreen: return Shortcut(key: "f", modifiers: [])
         case .nextAudio: return Shortcut(key: "a", modifiers: [])
         case .nextSubtitle: return Shortcut(key: "s", modifiers: [])
-        case .view3D: return Shortcut(key: "3", modifiers: [])
         case .open: return Shortcut(key: "o", modifiers: [.command])
         }
     }
@@ -109,6 +107,7 @@ final class AppSettings: ObservableObject {
     @Published var subtitleLanguages: String { didSet { save("subtitleLanguages", subtitleLanguages) } }
     @Published var subtitlesOff: Bool { didSet { save("subtitlesOff", subtitlesOff) } }
     @Published var preferAtmos: Bool { didSet { save("preferAtmos", preferAtmos) } }
+    @Published var blackoutOtherScreens: Bool { didSet { save("blackoutOtherScreens", blackoutOtherScreens) } }
     @Published var audioDevice: String { didSet { save("audioDevice", audioDevice) } }
     @Published var layoutId: String { didSet { save("layoutId", layoutId) } }
     @Published var shortcuts: [String: Shortcut] { didSet { saveShortcuts() } }
@@ -119,6 +118,7 @@ final class AppSettings: ObservableObject {
             "subtitleLanguages": "ita",
             "subtitlesOff": false,
             "preferAtmos": true,
+            "blackoutOtherScreens": true,
             "audioDevice": "auto",
             "layoutId": "7.1.4",
         ])
@@ -133,6 +133,7 @@ final class AppSettings: ObservableObject {
         subtitleLanguages = defaults.string(forKey: "subtitleLanguages") ?? ""
         subtitlesOff = defaults.bool(forKey: "subtitlesOff")
         preferAtmos = defaults.bool(forKey: "preferAtmos")
+        blackoutOtherScreens = defaults.bool(forKey: "blackoutOtherScreens")
         audioDevice = defaults.string(forKey: "audioDevice") ?? "auto"
         layoutId = defaults.string(forKey: "layoutId") ?? "7.1.4"
         if let data = defaults.data(forKey: "shortcuts"),

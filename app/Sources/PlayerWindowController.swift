@@ -3,7 +3,6 @@ import Cocoa
 /// Finestra principale: video, barra dei controlli, gestione delle tracce.
 final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPlayerDelegate {
     let player: MPVPlayer
-    let osc: OSCClient
     private(set) var videoView: VideoView!
     private let settings = AppSettings.shared
 
@@ -33,11 +32,10 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
     private var sizedForCurrentFile = false
 
     var onOpenRequest: (() -> Void)?
-    var onShow3D: (() -> Void)?
+    var onFullScreenChange: ((Bool) -> Void)?
 
-    init(player: MPVPlayer, osc: OSCClient) {
+    init(player: MPVPlayer) {
         self.player = player
-        self.osc = osc
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 540),
                               styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
@@ -120,12 +118,11 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
         atmosBadge.isHidden = true
         atmosBadge.toolTip = "La traccia in riproduzione contiene oggetti Atmos"
 
-        let view3D = iconButton("cube.transparent", tooltip: "Vista 3D", action: #selector(show3D))
         let full = iconButton("arrow.up.left.and.arrow.down.right", tooltip: "Schermo intero",
                               action: #selector(toggleFullScreenAction))
 
         let stack = NSStackView(views: [playButton, timeLabel, seekSlider, durationLabel, atmosBadge,
-                                        audioButton, subButton, volumeIcon, volumeSlider, view3D, full])
+                                        audioButton, subButton, volumeIcon, volumeSlider, full])
         stack.orientation = .horizontal
         stack.spacing = 8
         stack.edgeInsets = NSEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
@@ -214,7 +211,6 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
         userPickedSubtitle = false
         fileLoaded = false
         sizedForCurrentFile = false
-        osc.clear()
         window?.title = url.lastPathComponent
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
         RecentFiles.add(url)
@@ -422,7 +418,6 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
         player.setDouble("volume", sender.doubleValue)
     }
 
-    @objc func show3D() { onShow3D?() }
 
     @objc func toggleFullScreenAction() { window?.toggleFullScreen(nil) }
 
@@ -536,6 +531,9 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
 
     func windowDidChangeScreen(_ notification: Notification) { updateHDR() }
 
+    func windowDidEnterFullScreen(_ notification: Notification) { onFullScreenChange?(true) }
+    func windowWillExitFullScreen(_ notification: Notification) { onFullScreenChange?(false) }
+
     func windowWillClose(_ notification: Notification) {
         // Chiudendo la finestra si ferma la riproduzione (l'app resta aperta).
         player.command(["stop"])
@@ -543,7 +541,6 @@ final class PlayerWindowController: NSWindowController, NSWindowDelegate, MPVPla
         currentPath = nil
         placeholder.isHidden = false
         window?.title = "TC Cinema Player"
-        osc.clear()
     }
 
     func windowDidResize(_ notification: Notification) { videoView.videoLayer.forceDraw() }

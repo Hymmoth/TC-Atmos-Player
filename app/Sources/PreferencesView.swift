@@ -57,6 +57,11 @@ private struct GeneralPane: View {
             } header: {
                 Text("Sottotitoli")
             }
+            Section {
+                Toggle("Oscura gli altri schermi a schermo intero", isOn: $settings.blackoutOtherScreens)
+            } header: {
+                Text("Schermo intero")
+            }
             Text("Scrivi i codici delle lingue in ordine di preferenza, separati da virgole (es. ita, eng). Valgono dal prossimo file aperto.")
                 .font(.caption).foregroundStyle(.secondary)
         }
